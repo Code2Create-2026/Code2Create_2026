@@ -1,0 +1,110 @@
+"""
+engine.py — Orchestrator for the Code2Create 2026 analysis engine.
+
+This is the main entry point for running an analysis.
+It ties together the backend parser, frontend parser, and comparator.
+
+Usage:
+    from analysis_engine.engine import run_analysis
+
+    result = run_analysis("/path/to/project")
+
+The project folder must have this structure:
+    /project
+        /backend    ← Python API code
+        /frontend   ← React/JS code
+
+Output structure (the API contract for Rohith):
+    {
+        "status": "ok" | "warning" | "error",
+        "summary": {
+            "total": int,
+            "matches": int,
+            "possible_mismatches": int,
+            "missing_in_backend": int,
+            "missing_in_frontend": int,
+            "has_issues": bool
+        },
+        "endpoints": [
+            {
+                "endpoint": "/api/user",
+                "backend_fields": ["userId", "name"],
+                "frontend_fields": ["user_id", "name"],
+                "results": [
+                    {
+                        "backend_field": "userId",
+                        "frontend_field": "user_id",
+                        "status": "possible_mismatch",
+                        "message": "..."
+                    },
+                    ...
+                ]
+            }
+        ]
+    }
+"""
+
+import os
+from analysis_engine.backend_parser import parse_backend
+from analysis_engine.frontend_parser import parse_frontend
+from analysis_engine.comparator import compare_fields, summarize
+
+
+def run_analysis(project_path):
+    """
+    Run the full analysis pipeline on a project directory.
+
+    Parameters:
+        project_path (str): Absolute or relative path to the project folder.
+                            Must contain /backend and /frontend subdirectories.
+
+    Returns:
+        dict: Structured analysis result (see module docstring for shape).
+    """
+    backend_dir = os.path.join(project_path, "backend")
+    frontend_dir = os.path.join(project_path, "frontend")
+
+    print(f"\n[engine] Starting analysis of: {project_path}")
+    print(f"[engine] Backend directory: {backend_dir}")
+    print(f"[engine] Frontend directory: {frontend_dir}")
+
+    # Step 1 — Parse the backend to find all API endpoints and their fields
+    print("\n[engine] Step 1: Parsing backend...")
+    backend_endpoints = parse_backend(backend_dir)
+    print(f"[engine] Found {len(backend_endpoints)} endpoint(s) in backend.")
+
+    # Step 2 — Parse the frontend to find all data fields accessed
+    print("\n[engine] Step 2: Parsing frontend...")
+    frontend_fields = parse_frontend(frontend_dir)
+    print(f"[engine] Found {len(frontend_fields)} unique field(s) in frontend.")
+
+    # Step 3 — Compare each endpoint's fields against the frontend fields
+    print("\n[engine] Step 3: Comparing backend fields with frontend fields...")
+    endpoint_results = []
+    all_comparison_results = []
+
+    for endpoint_info in backend_endpoints:
+        endpoint = endpoint_info["endpoint"]
+        b_fields = endpoint_info["fields"]
+
+        comparison = compare_fields(b_fields, frontend_fields)
+        all_comparison_results.extend(comparison)
+
+        endpoint_results.append({
+            "endpoint": endpoint,
+            "backend_fields": b_fields,
+            "frontend_fields": frontend_fields,
+            "results": comparison
+        })
+
+    # Step 4 — Build summary and overall status
+    summary = summarize(all_comparison_results)
+    overall_status = "warning" if summary["has_issues"] else "ok"
+
+    print(f"\n[engine] Analysis complete. Status: {overall_status}")
+
+    return {
+        "status": overall_status,
+        "summary": summary,
+        "endpoints": endpoint_results
+    }
