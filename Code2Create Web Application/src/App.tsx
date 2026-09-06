@@ -69,6 +69,19 @@ export interface AnalysisResult {
 
 // Resilient API Fetcher
 async function apiFetch(endpoint: string, options?: RequestInit): Promise<Response> {
+  const backendBase = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+
+  if (backendBase) {
+    try {
+      const res = await fetch(`${backendBase}${endpoint}`, options);
+      if (res.ok || res.status === 400 || res.status === 500) {
+        return res;
+      }
+    } catch {
+      // Configured backend failed; continue fallback
+    }
+  }
+
   // Try relative endpoint first (works with Vite proxy or same-host)
   try {
     const res = await fetch(endpoint, options);
@@ -152,7 +165,7 @@ export default function App() {
               />
               <span className="text-muted">
                 {backendOnline === true
-                  ? 'Engine Online (port 5000)'
+                  ? 'Engine Online'
                   : backendOnline === false
                   ? 'Engine Offline'
                   : 'Connecting...'}
