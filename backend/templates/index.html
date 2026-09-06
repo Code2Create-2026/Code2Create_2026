@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-black text-[#ededed]">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code2Create — Cross-Boundary Contract Analyzer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            background: '#000000',
+            foreground: '#ededed',
+            card: '#111111',
+            'card-border': '#333333',
+            'card-hover': '#1a1a1a',
+            'muted-bg': '#222222',
+            muted: '#888888',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="min-h-full bg-black text-[#ededed] flex flex-col selection:bg-[#222] selection:text-white">
+
+  <!-- Navigation Header -->
+  <header class="border-b border-[#333] bg-[#111]/80 backdrop-blur-md sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-md bg-gradient-to-br from-white to-[#666] flex items-center justify-center shadow-inner">
+          <span class="font-mono font-bold text-black text-sm">C2</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <h1 class="font-semibold tracking-tight text-lg">Code2Create</h1>
+          <span class="text-xs font-mono px-2 py-0.5 rounded bg-[#222] text-[#888] border border-[#333]">
+            Integration
+          </span>
+        </div>
+        <span class="text-[#888] text-sm hidden sm:inline-block">/ Cross-Boundary Contract Analyzer</span>
+      </div>
+
+      <!-- Engine Status Indicator -->
+      <div class="flex items-center gap-2">
+        <div id="statusBadge" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-[#111] border border-[#333]">
+          <div id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+          <span id="statusText" class="text-[#888]">Engine Online (port 5000)</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 flex flex-col w-full max-w-6xl mx-auto p-6 md:p-10">
+
+    <!-- Screen 1: Upload / Setup -->
+    <section id="screenUpload" class="flex-1 flex flex-col items-center justify-center max-w-3xl mx-auto w-full">
+      <div class="text-center mb-8 space-y-3">
+        <h2 class="text-3xl md:text-5xl font-semibold tracking-tight">
+          Detect API changes that <span class="text-rose-400">break</span> your UI.
+        </h2>
+        <p class="text-[#888] text-base md:text-lg max-w-2xl mx-auto">
+          Static AST analysis across Flask API endpoints and React fetch bindings to catch naming and contract drifts before runtime.
+        </p>
+      </div>
+
+      <div class="w-full bg-[#111] border border-[#333] rounded-xl p-8 shadow-2xl space-y-8">
+        
+        <!-- Preset: Bundled Demo -->
+        <div class="p-5 rounded-xl bg-gradient-to-r from-[#181818] to-[#111] border border-[#333] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+              Ready-to-Run Demo
+            </span>
+            <h4 class="text-base font-semibold text-white mt-1">
+              Bundled Sample Project (<code class="text-xs text-[#888] font-mono">sample_project/</code>)
+            </h4>
+            <p class="text-xs text-[#888] mt-0.5">
+              Demonstrates real detection of <code class="text-amber-400 font-mono">userId</code> (backend) vs <code class="text-rose-400 font-mono">user_id</code> (frontend).
+            </p>
+          </div>
+          <button
+            onclick="runAnalysis('sample_project')"
+            class="shrink-0 px-5 py-2.5 bg-white text-black font-semibold text-sm rounded-lg hover:bg-neutral-200 transition-all active:scale-[0.98] flex items-center gap-2 shadow-sm"
+          >
+            Run Sample Scan
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <!-- Custom Path -->
+        <div class="space-y-3">
+          <label class="text-xs font-medium uppercase tracking-wider text-[#888] flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            Or Analyze Custom Project Directory
+          </label>
+          <div class="flex gap-2">
+            <input
+              id="inputPath"
+              type="text"
+              value="sample_project"
+              placeholder="e.g. sample_project or D:\my-fullstack-app"
+              class="flex-1 bg-black border border-[#333] rounded-lg px-4 py-2.5 text-sm font-mono text-white focus:outline-none focus:border-neutral-400 transition-colors"
+            />
+            <button
+              onclick="runAnalysis(document.getElementById('inputPath').value)"
+              class="px-6 py-2.5 bg-[#222] hover:bg-[#2a2a2a] border border-[#333] font-medium text-sm rounded-lg transition-colors flex items-center gap-2"
+            >
+              Analyze Path
+            </button>
+          </div>
+        </div>
+
+        <!-- File Upload -->
+        <div
+          id="dropZone"
+          onclick="document.getElementById('fileInput').click()"
+          class="border-2 border-dashed border-[#333] hover:border-neutral-500 rounded-xl p-8 text-center transition-colors cursor-pointer bg-black/40"
+        >
+          <svg class="w-8 h-8 text-[#888] mx-auto mb-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          <p id="dropText" class="text-sm font-medium text-white mb-1">Upload Project ZIP Archive</p>
+          <p class="text-xs text-[#888]">Must contain /backend and /frontend subdirectories</p>
+          <input id="fileInput" type="file" accept=".zip" class="hidden" onchange="handleFile(event)" />
+        </div>
+
+      </div>
+
+      <div class="mt-8 text-center text-xs text-[#888] font-mono bg-[#222]/40 px-4 py-2 rounded-full border border-[#333]">
+        Cross-Boundary Engine: Python AST Parser + React JSX Parser + AST Comparator
+      </div>
+    </section>
+
+    <!-- Screen 2: Analyzing Live Progress -->
+    <section id="screenAnalyzing" class="hidden flex-1 flex flex-col items-center justify-center max-w-xl mx-auto w-full">
+      <div class="w-full">
+        <h2 class="text-2xl md:text-3xl font-medium mb-8 flex items-center gap-3">
+          <svg class="w-7 h-7 animate-spin text-[#888]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          Analyzing Project AST...
+        </h2>
+
+        <div class="space-y-4">
+          <div id="step1" class="flex items-center gap-4 p-4 rounded-lg border border-[#333] bg-[#111] shadow-lg transition-all duration-300">
+            <div class="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">✓</div>
+            <div>
+              <p class="font-medium text-sm text-white">Connecting to Analysis Engine API</p>
+              <p class="text-xs text-[#888] font-mono mt-0.5">Complete</p>
+            </div>
+          </div>
+
+          <div id="step2" class="flex items-center gap-4 p-4 rounded-lg border border-[#333] bg-[#111] shadow-lg transition-all duration-300">
+            <div id="dot2" class="w-8 h-8 rounded-full bg-[#222] text-[#888] flex items-center justify-center font-bold text-sm">
+              <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            </div>
+            <div>
+              <p class="font-medium text-sm text-white">AST Parsing Backend Flask Endpoints</p>
+              <p id="sub2" class="text-xs text-[#888] font-mono mt-0.5">Processing routes & return dicts...</p>
+            </div>
+          </div>
+
+          <div id="step3" class="flex items-center gap-4 p-4 rounded-lg border border-transparent opacity-40 transition-all duration-300">
+            <div id="dot3" class="w-8 h-8 rounded-full bg-[#222] text-[#888] flex items-center justify-center font-bold text-sm">3</div>
+            <div>
+              <p class="font-medium text-sm">AST Parsing Frontend Fetch & Prop Usage</p>
+              <p id="sub3" class="text-xs text-[#888] font-mono mt-0.5">Pending</p>
+            </div>
+          </div>
+
+          <div id="step4" class="flex items-center gap-4 p-4 rounded-lg border border-transparent opacity-40 transition-all duration-300">
+            <div id="dot4" class="w-8 h-8 rounded-full bg-[#222] text-[#888] flex items-center justify-center font-bold text-sm">4</div>
+            <div>
+              <p class="font-medium text-sm">Fuzzy Matching & Contract Verification</p>
+              <p id="sub4" class="text-xs text-[#888] font-mono mt-0.5">Pending</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen 3: Results -->
+    <section id="screenResults" class="hidden w-full max-w-5xl mx-auto space-y-8">
+      <!-- Header Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#333] pb-6">
+        <div>
+          <div class="flex items-center gap-3">
+            <h2 class="text-3xl font-semibold tracking-tight">Analysis Results</h2>
+            <span id="badgeOverall" class="text-xs font-mono uppercase px-2.5 py-1 rounded-full font-bold border">
+              Issues Detected
+            </span>
+          </div>
+          <p id="targetSubtext" class="text-[#888] mt-2 font-mono text-xs">
+            Target: sample_project • 2 endpoint(s) inspected
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            onclick="copyJson()"
+            id="copyBtn"
+            class="px-3.5 py-2 bg-[#111] border border-[#333] rounded-md text-xs font-medium hover:bg-[#1a1a1a] transition-colors flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span id="copyText">Copy JSON</span>
+          </button>
+          <button
+            onclick="resetScan()"
+            class="px-4 py-2 bg-white text-black font-semibold rounded-md text-xs hover:bg-neutral-200 transition-colors flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            New Scan
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-[#111] border border-[#333] rounded-xl p-4">
+          <p class="text-xs font-mono text-[#888] uppercase">Total Evaluated</p>
+          <p id="statTotal" class="text-2xl font-bold mt-1 text-white">0</p>
+        </div>
+        <div class="bg-[#111] border border-[#333] rounded-xl p-4">
+          <p class="text-xs font-mono text-[#888] uppercase">Exact Matches</p>
+          <p id="statMatches" class="text-2xl font-bold mt-1 text-emerald-400">0</p>
+        </div>
+        <div class="bg-[#111] border border-[#333] rounded-xl p-4">
+          <p class="text-xs font-mono text-[#888] uppercase">Possible Mismatches</p>
+          <p id="statMismatches" class="text-2xl font-bold mt-1 text-amber-400">0</p>
+        </div>
+        <div class="bg-[#111] border border-[#333] rounded-xl p-4">
+          <p class="text-xs font-mono text-[#888] uppercase">Missing in Backend</p>
+          <p id="statMissingBackend" class="text-2xl font-bold mt-1 text-rose-400">0</p>
+        </div>
+        <div class="bg-[#111] border border-[#333] rounded-xl p-4">
+          <p class="text-xs font-mono text-[#888] uppercase">Missing in Frontend</p>
+          <p id="statMissingFrontend" class="text-2xl font-bold mt-1 text-neutral-400">0</p>
+        </div>
+      </div>
+
+      <!-- Highlight Banner -->
+      <div id="bannerContainer"></div>
+
+      <!-- Mismatches List -->
+      <div id="mismatchesSection" class="space-y-4"></div>
+
+      <!-- Endpoints Breakdown -->
+      <div id="endpointsSection" class="space-y-4"></div>
+    </section>
+
+  </main>
+
+  <script>
+    let currentResult = null;
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+          document.getElementById('statusText').innerText = 'Engine Online (port 5000)';
+          return;
+        }
+      } catch (e) {}
+      document.getElementById('statusDot').className = 'w-2 h-2 rounded-full bg-rose-500';
+      document.getElementById('statusText').innerText = 'Engine Offline';
+    }
+    checkHealth();
+    setInterval(checkHealth, 5000);
+
+    function showScreen(screen) {
+      document.getElementById('screenUpload').classList.toggle('hidden', screen !== 'upload');
+      document.getElementById('screenAnalyzing').classList.toggle('hidden', screen !== 'analyzing');
+      document.getElementById('screenResults').classList.toggle('hidden', screen !== 'results');
+    }
+
+    async function runAnalysis(path) {
+      showScreen('analyzing');
+      animateSteps();
+
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_path: path })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          alert('Analysis Error: ' + (data.error || 'Server error'));
+          showScreen('upload');
+          return;
+        }
+        setTimeout(() => renderResults(data), 600);
+      } catch (err) {
+        alert('Could not connect to analysis engine: ' + err.message);
+        showScreen('upload');
+      }
+    }
+
+    async function handleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      showScreen('analyzing');
+      animateSteps();
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/upload-and-analyze', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          alert('Upload Error: ' + (data.error || 'Server error'));
+          showScreen('upload');
+          return;
+        }
+        setTimeout(() => renderResults(data), 600);
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+        showScreen('upload');
+      }
+    }
+
+    function animateSteps() {
+      setTimeout(() => {
+        document.getElementById('step2').classList.remove('opacity-40');
+        document.getElementById('dot2').innerHTML = '✓';
+        document.getElementById('dot2').className = 'w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm';
+        document.getElementById('sub2').innerText = 'Complete';
+        
+        document.getElementById('step3').classList.remove('opacity-40');
+        document.getElementById('dot3').innerHTML = '✓';
+        document.getElementById('dot3').className = 'w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm';
+        document.getElementById('sub3').innerText = 'Complete';
+      }, 300);
+
+      setTimeout(() => {
+        document.getElementById('step4').classList.remove('opacity-40');
+        document.getElementById('dot4').innerHTML = '✓';
+        document.getElementById('dot4').className = 'w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm';
+        document.getElementById('sub4').innerText = 'Complete';
+      }, 500);
+    }
+
+    function renderResults(data) {
+      currentResult = data;
+      const { summary, endpoints } = data;
+
+      // Badges & stats
+      document.getElementById('targetSubtext').innerText = `Target: ${data.project_name || data.project_path || 'sample_project'} • ${endpoints.length} endpoint(s) inspected`;
+      document.getElementById('statTotal').innerText = summary.total;
+      document.getElementById('statMatches').innerText = summary.matches;
+      document.getElementById('statMismatches').innerText = summary.possible_mismatches;
+      document.getElementById('statMissingBackend').innerText = summary.missing_in_backend;
+      document.getElementById('statMissingFrontend').innerText = summary.missing_in_frontend;
+
+      const badgeOverall = document.getElementById('badgeOverall');
+      const bannerContainer = document.getElementById('bannerContainer');
+
+      if (summary.has_issues) {
+        badgeOverall.className = 'text-xs font-mono uppercase px-2.5 py-1 rounded-full font-bold border bg-amber-950/60 text-amber-300 border-amber-800';
+        badgeOverall.innerText = '⚠ Issues Detected';
+
+        bannerContainer.innerHTML = `
+          <div class="bg-amber-950/40 border border-amber-900/60 rounded-xl p-4 flex items-start gap-4">
+            <div class="w-6 h-6 text-amber-400 mt-1 shrink-0">⚠</div>
+            <div>
+              <h3 class="text-base font-semibold text-amber-300">Contract Discrepancies Found Across Boundary</h3>
+              <p class="text-xs md:text-sm text-[#ededed]/80 mt-1 leading-relaxed">
+                We identified naming mismatches and unused/missing fields between Flask responses and React frontend consumption.
+              </p>
+            </div>
+          </div>
+        `;
+      } else {
+        badgeOverall.className = 'text-xs font-mono uppercase px-2.5 py-1 rounded-full font-bold border bg-emerald-950/60 text-emerald-300 border-emerald-800';
+        badgeOverall.innerText = '✓ Verified Clean';
+
+        bannerContainer.innerHTML = `
+          <div class="bg-emerald-950/30 border border-emerald-900/60 rounded-xl p-4 flex items-center gap-3">
+            <div class="w-6 h-6 text-emerald-400 shrink-0">✓</div>
+            <div>
+              <h3 class="text-base font-semibold text-emerald-300">All Field Contracts Verified</h3>
+              <p class="text-xs text-[#ededed]/80">Every backend API response perfectly matches frontend usage.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Collect mismatches
+      const allMismatches = [];
+      endpoints.forEach(ep => {
+        ep.results.filter(r => r.status === 'possible_mismatch').forEach(r => {
+          allMismatches.push({ endpoint: ep.endpoint, result: r });
+        });
+      });
+
+      const mismatchesSection = document.getElementById('mismatchesSection');
+      if (allMismatches.length > 0) {
+        mismatchesSection.innerHTML = `
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-[#888] font-mono">
+            Naming Mismatches (Potential Breaking Changes)
+          </h3>
+          ${allMismatches.map((item, idx) => `
+            <div class="bg-[#111] border border-[#333] rounded-xl overflow-hidden shadow-lg group">
+              <div class="px-6 py-3.5 border-b border-[#333] flex items-center justify-between bg-[#181818]/60">
+                <div class="flex items-center gap-3">
+                  <span class="w-6 h-6 rounded bg-amber-950 border border-amber-800 text-amber-400 text-xs font-bold flex items-center justify-center">
+                    ${idx + 1}
+                  </span>
+                  <span class="font-mono text-xs text-white font-semibold">${item.endpoint}</span>
+                </div>
+                <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-[#222] text-amber-400 border border-[#333] flex items-center gap-1.5">
+                  <div class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></div>
+                  Possible Mismatch
+                </span>
+              </div>
+
+              <div class="p-6 md:p-8 grid md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
+                <div class="space-y-2">
+                  <div class="text-xs font-medium text-[#888] uppercase tracking-wider">Backend Output</div>
+                  <div class="bg-black rounded-lg p-4 border border-[#333]">
+                    <div class="text-xs text-[#888] mb-2 font-mono">Flask Route Dict Key</div>
+                    <div class="font-mono text-xl text-amber-400 font-semibold bg-[#222]/80 inline-block px-3 py-1.5 rounded">
+                      ${item.result.backend_field}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-[#888] text-center text-xl">→</div>
+
+                <div class="space-y-2">
+                  <div class="text-xs font-medium text-[#888] uppercase tracking-wider">Frontend Expectation</div>
+                  <div class="bg-black rounded-lg p-4 border border-[#333]">
+                    <div class="text-xs text-[#888] mb-2 font-mono">React Component Prop Access</div>
+                    <div class="font-mono text-xl text-rose-400 font-semibold bg-[#222]/80 inline-block px-3 py-1.5 rounded border-b border-dashed border-rose-500/60">
+                      ${item.result.frontend_field}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-[#222]/30 px-6 py-3 text-xs text-[#888] border-t border-[#333]">
+                <strong>Fix Recommendation:</strong> Standardize on camelCase 
+                <code class="font-mono text-xs bg-[#222] px-1 rounded text-white">${item.result.backend_field}</code> 
+                or snake_case 
+                <code class="font-mono text-xs bg-[#222] px-1 rounded text-white">${item.result.frontend_field}</code> 
+                across the API boundary to prevent undefined UI state.
+              </div>
+            </div>
+          `).join('')}
+        `;
+      } else {
+        mismatchesSection.innerHTML = '';
+      }
+
+      // Endpoints breakdown
+      const endpointsSection = document.getElementById('endpointsSection');
+      endpointsSection.innerHTML = `
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-[#888] font-mono">
+          Endpoint Breakdown (${endpoints.length})
+        </h3>
+        ${endpoints.map(ep => {
+          const epMatches = ep.results.filter(r => r.status === 'match');
+          const epMismatches = ep.results.filter(r => r.status === 'possible_mismatch');
+          const epMissing = ep.results.filter(r => r.status === 'missing_in_backend' || r.status === 'missing_in_frontend');
+
+          return `
+            <div class="bg-[#111] border border-[#333] rounded-xl p-6 space-y-4">
+              <div class="flex items-center justify-between border-b border-[#333] pb-3">
+                <div class="flex items-center gap-3">
+                  <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-[#222] text-white border border-[#333]">
+                    ROUTE
+                  </span>
+                  <span class="font-mono text-sm font-semibold text-white">${ep.endpoint}</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-mono text-[#888]">
+                  <span>${epMatches.length} match</span> •
+                  <span class="text-amber-400">${epMismatches.length} mismatch</span> •
+                  <span class="text-rose-400">${epMissing.length} missing</span>
+                </div>
+              </div>
+
+              ${epMatches.length > 0 ? `
+                <div class="bg-black/60 rounded-lg p-3 border border-[#333]/60 flex items-center justify-between text-xs font-mono">
+                  <span class="text-emerald-400 font-semibold flex items-center gap-1.5">✓ Matched Fields:</span>
+                  <div class="flex gap-2 flex-wrap">
+                    ${epMatches.map(m => `
+                      <span class="px-2 py-0.5 rounded bg-[#222] text-white border border-[#333]">${m.backend_field}</span>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+
+              ${epMissing.length > 0 ? `
+                <div class="space-y-2">
+                  ${epMissing.map(m => `
+                    <div class="p-3 rounded-lg bg-black/40 border border-[#333] text-xs font-mono flex items-center justify-between">
+                      <span class="${m.status === 'missing_in_backend' ? 'text-rose-400' : 'text-neutral-400'}">${m.message}</span>
+                      <span class="text-[#888] text-[10px] uppercase">${m.status.replace(/_/g, ' ')}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      `;
+
+      showScreen('results');
+    }
+
+    function copyJson() {
+      if (!currentResult) return;
+      navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2));
+      document.getElementById('copyText').innerText = 'Copied!';
+      setTimeout(() => {
+        document.getElementById('copyText').innerText = 'Copy JSON';
+      }, 2000);
+    }
+
+    function resetScan() {
+      showScreen('upload');
+    }
+  </script>
+</body>
+</html>

@@ -13,7 +13,7 @@ import os
 import zipfile
 import tempfile
 import shutil
-from flask import request, jsonify
+from flask import request, jsonify, render_template
 
 # Add the project root to the path so we can import analysis_engine
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -52,6 +52,11 @@ def _resolve_project_path(raw_path):
 
 def register_routes(app):
     """Register all routes on the given Flask app."""
+
+    @app.route("/", methods=["GET"])
+    def index():
+        """Serve the Code2Create integrated Web Application UI."""
+        return render_template("index.html")
 
     @app.route("/api/health", methods=["GET"])
     def health():
