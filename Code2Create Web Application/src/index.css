@@ -25,6 +25,10 @@
   --color-warning: #f59e0b;
   --color-warning-bg: #451a03;
   --color-warning-border: #b45309;
+
+  --color-error: #ef4444;
+  --color-error-bg: #450a0a;
+  --color-error-border: #b91c1c;
 }
 
 html, body, #root {

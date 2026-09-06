@@ -4,6 +4,12 @@ app.py — Flask application entry point for Code2Create 2026 backend.
 Starts the server and registers all API routes.
 """
 
+import os
+import sys
+
+# Ensure backend directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask
 from flask_cors import CORS
 from routes import register_routes
