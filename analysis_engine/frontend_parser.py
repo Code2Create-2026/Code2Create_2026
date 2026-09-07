@@ -65,8 +65,12 @@ def parse_frontend_file(filepath):
             {"name": "name", "file": "frontend/App.jsx", "line": 26}
         ]
     """
-    with open(filepath, "r", encoding="utf-8") as f:
-        source = f.read()
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            source = f.read()
+    except Exception as e:
+        print(f"  [frontend_parser] Skipping {filepath} — File Read Error: {e}")
+        return []
 
     matches = _FIELD_ACCESS_PATTERN.finditer(source)
 
@@ -102,9 +106,14 @@ def parse_frontend(frontend_dir):
         print(f"  [frontend_parser] Directory not found: {frontend_dir}")
         return all_fields
 
-    for root, _, files in os.walk(frontend_dir):
+    IGNORED_DIRS = {"node_modules", ".git", "__pycache__", "venv", "env", "build", "dist", ".next"}
+
+    for root, dirs, files in os.walk(frontend_dir):
+        # Prevent traversal into ignored directories
+        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
+
         for filename in files:
-            if filename.endswith((".js", ".jsx", ".ts", ".tsx")):
+            if filename.endswith((".js", ".jsx", ".ts", ".tsx")) and not filename.endswith(".min.js"):
                 filepath = os.path.join(root, filename)
                 print(f"  [frontend_parser] Parsing: {filepath}")
                 fields = parse_frontend_file(filepath)

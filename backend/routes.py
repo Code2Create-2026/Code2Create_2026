@@ -124,6 +124,12 @@ def register_routes(app):
             os.makedirs(extract_dir, exist_ok=True)
 
             with zipfile.ZipFile(zip_path, "r") as z:
+                extract_dir_abs = os.path.abspath(extract_dir)
+                for member in z.namelist():
+                    member_path_abs = os.path.abspath(os.path.join(extract_dir_abs, member))
+                    # Prevent Zip Slip and prefix false-matches (e.g. /tmp/ext vs /tmp/ext_evil)
+                    if os.path.commonpath([extract_dir_abs, member_path_abs]) != extract_dir_abs:
+                        raise Exception(f"Attempted Path Traversal in ZIP archive: {member}")
                 z.extractall(extract_dir)
 
             # Determine project root inside the zip (might be at extracted root or inside a single subdirectory)

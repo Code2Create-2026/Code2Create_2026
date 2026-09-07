@@ -103,6 +103,9 @@ def parse_backend_file(filepath):
     except SyntaxError as e:
         print(f"  [backend_parser] Skipping {filepath} — SyntaxError: {e}")
         return []
+    except Exception as e:
+        print(f"  [backend_parser] Skipping {filepath} — Parse Error: {e}")
+        return []
 
     endpoints = []
 
@@ -142,7 +145,12 @@ def parse_backend(backend_dir):
         print(f"  [backend_parser] Directory not found: {backend_dir}")
         return all_endpoints
 
-    for root, _, files in os.walk(backend_dir):
+    IGNORED_DIRS = {"node_modules", ".git", "__pycache__", "venv", "env", "build", "dist", ".next"}
+
+    for root, dirs, files in os.walk(backend_dir):
+        # Prevent traversal into ignored directories
+        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
+
         for filename in files:
             if filename.endswith(".py"):
                 filepath = os.path.join(root, filename)
