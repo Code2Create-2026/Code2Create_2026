@@ -35,7 +35,7 @@ const Copy = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 );
 
-// Types matching Python Analysis Engine API Contract
+// Types matching Python Analysis Engine API Contract (Phase 4)
 export interface Summary {
   total: number;
   matches: number;
@@ -45,17 +45,24 @@ export interface Summary {
   has_issues: boolean;
 }
 
+export interface FieldSource {
+  name: string;
+  file: string;
+  line: number;
+}
+
 export interface FieldResult {
-  backend_field: string | null;
-  frontend_field: string | null;
+  backend_field: FieldSource | null;
+  frontend_field: FieldSource | null;
   status: 'match' | 'possible_mismatch' | 'missing_in_backend' | 'missing_in_frontend';
+  confidence: 'confirmed' | 'probable' | 'uncertain';
   message: string;
 }
 
 export interface EndpointResult {
   endpoint: string;
-  backend_fields: string[];
-  frontend_fields: string[];
+  backend_fields: FieldSource[];
+  frontend_fields: FieldSource[];
   results: FieldResult[];
 }
 
@@ -660,10 +667,23 @@ function ResultsScreen({
                     {item.endpoint}
                   </span>
                 </div>
-                <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-muted-bg text-amber-400 border border-card-border flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  Possible Mismatch
-                </span>
+                <div className="flex items-center gap-2">
+                  {item.result.confidence && (
+                    <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${
+                      item.result.confidence === 'confirmed'
+                        ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                        : item.result.confidence === 'probable'
+                        ? 'bg-blue-950/60 text-blue-400 border-blue-800'
+                        : 'bg-neutral-800/60 text-neutral-400 border-neutral-700'
+                    }`}>
+                      {item.result.confidence}
+                    </span>
+                  )}
+                  <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-muted-bg text-amber-400 border border-card-border flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Possible Mismatch
+                  </span>
+                </div>
               </div>
 
               <div className="p-6 md:p-8 grid md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
@@ -675,8 +695,13 @@ function ResultsScreen({
                   <div className="bg-background rounded-lg p-4 border border-card-border group-hover:border-amber-500/40 transition-colors">
                     <div className="text-xs text-muted mb-2 font-mono">Flask Route Dict Key</div>
                     <div className="font-mono text-xl text-amber-400 font-semibold bg-muted-bg/60 inline-block px-3 py-1.5 rounded">
-                      {item.result.backend_field}
+                      {item.result.backend_field?.name ?? '—'}
                     </div>
+                    {item.result.backend_field?.file && (
+                      <div className="text-[10px] text-muted font-mono mt-1.5 opacity-70">
+                        {item.result.backend_field.file} : {item.result.backend_field.line}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -692,8 +717,13 @@ function ResultsScreen({
                   <div className="bg-background rounded-lg p-4 border border-card-border group-hover:border-rose-500/40 transition-colors">
                     <div className="text-xs text-muted mb-2 font-mono">React Component Prop Access</div>
                     <div className="font-mono text-xl text-rose-400 font-semibold bg-muted-bg/60 inline-block px-3 py-1.5 rounded border-b border-dashed border-rose-500/60">
-                      {item.result.frontend_field}
+                      {item.result.frontend_field?.name ?? '—'}
                     </div>
+                    {item.result.frontend_field?.file && (
+                      <div className="text-[10px] text-muted font-mono mt-1.5 opacity-70">
+                        {item.result.frontend_field.file} : {item.result.frontend_field.line}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -701,11 +731,11 @@ function ResultsScreen({
               <div className="bg-muted-bg/30 px-6 py-3 text-xs text-muted border-t border-card-border">
                 <strong>Fix Recommendation:</strong> Standardize on camelCase{' '}
                 <code className="font-mono text-xs bg-muted-bg px-1 rounded text-foreground">
-                  {item.result.backend_field}
+                  {item.result.backend_field?.name ?? '—'}
                 </code>{' '}
                 or snake_case{' '}
                 <code className="font-mono text-xs bg-muted-bg px-1 rounded text-foreground">
-                  {item.result.frontend_field}
+                  {item.result.frontend_field?.name ?? '—'}
                 </code>{' '}
                 across the API boundary to prevent undefined UI state.
               </div>
@@ -759,7 +789,7 @@ function ResultsScreen({
                         key={mIdx}
                         className="px-2 py-0.5 rounded bg-muted-bg text-foreground border border-card-border"
                       >
-                        {m.backend_field}
+                        {m.backend_field?.name ?? m.frontend_field?.name ?? '—'}
                       </span>
                     ))}
                   </div>
