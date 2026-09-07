@@ -43,6 +43,12 @@ _FIELD_ACCESS_PATTERN = re.compile(
     rf"\b(?:{_VARIABLE_PATTERN})\.([a-zA-Z_][a-zA-Z0-9_]*)\b"
 )
 
+# Regex to detect explicit endpoint strings like "/api/user"
+_EXPLICIT_ENDPOINT_PATTERN = re.compile(r"['\"](/api/[a-zA-Z0-9_/-]+)['\"]")
+
+# Regex to detect dynamic API calls like fetch(userUrl) or axios.get(apiUrl)
+_DYNAMIC_API_PATTERN = re.compile(r"\b(?:fetch|axios(?:\.\w+)?)\s*\(\s*[^'\"]")
+
 # Known JavaScript method/property names that are NOT API data fields.
 # These appear as patterns like res.json(), promise.then(), etc.
 # We exclude them to avoid false positives.
@@ -57,20 +63,28 @@ _JS_BUILTINS = {
 
 def parse_frontend_file(filepath):
     """
-    Parse a single JS/JSX file and return a list of field access objects.
+    Parse a single JS/JSX file and return a file-centric field access object.
 
     Returns:
-        [
-            {"name": "user_id", "file": "frontend/App.jsx", "line": 25},
-            {"name": "name", "file": "frontend/App.jsx", "line": 26}
-        ]
+        {
+            "file": "frontend/App.jsx",
+            "explicit_endpoints": ["/api/user"],
+            "has_dynamic_api_call": False,
+            "fields": [
+                {"name": "user_id", "line": 25},
+                {"name": "name", "line": 26}
+            ]
+        }
     """
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             source = f.read()
     except Exception as e:
         print(f"  [frontend_parser] Skipping {filepath} — File Read Error: {e}")
-        return []
+        return None
+
+    explicit_endpoints = list(set(_EXPLICIT_ENDPOINT_PATTERN.findall(source)))
+    has_dynamic_api_call = bool(_DYNAMIC_API_PATTERN.search(source))
 
     matches = _FIELD_ACCESS_PATTERN.finditer(source)
 
@@ -81,30 +95,39 @@ def parse_frontend_file(filepath):
             line_num = source[:match.start()].count("\n") + 1
             fields.append({
                 "name": field,
-                "file": filepath,
                 "line": line_num
             })
 
-    return fields
+    return {
+        "file": filepath,
+        "explicit_endpoints": explicit_endpoints,
+        "has_dynamic_api_call": has_dynamic_api_call,
+        "fields": fields
+    }
 
 
 def parse_frontend(frontend_dir):
     """
     Walk the entire frontend directory, parse all JS/JSX/TS/TSX files,
-    and collect all field names accessed from API response variables.
+    and collect file-centric API consumption data.
 
     Returns:
-        List of field dicts:
+        List of file dicts:
         [
-            {"name": "user_id", "file": "...", "line": 10},
+            {
+                "file": "...",
+                "explicit_endpoints": [...],
+                "has_dynamic_api_call": False,
+                "fields": [...]
+            },
             ...
         ]
     """
-    all_fields = []
+    all_files = []
 
     if not os.path.isdir(frontend_dir):
         print(f"  [frontend_parser] Directory not found: {frontend_dir}")
-        return all_fields
+        return all_files
 
     IGNORED_DIRS = {"node_modules", ".git", "__pycache__", "venv", "env", "build", "dist", ".next"}
 
@@ -116,7 +139,8 @@ def parse_frontend(frontend_dir):
             if filename.endswith((".js", ".jsx", ".ts", ".tsx")) and not filename.endswith(".min.js"):
                 filepath = os.path.join(root, filename)
                 print(f"  [frontend_parser] Parsing: {filepath}")
-                fields = parse_frontend_file(filepath)
-                all_fields.extend(fields)
+                file_data = parse_frontend_file(filepath)
+                if file_data and (len(file_data["fields"]) > 0 or file_data["explicit_endpoints"] or file_data["has_dynamic_api_call"]):
+                    all_files.append(file_data)
 
-    return all_fields
+    return all_files

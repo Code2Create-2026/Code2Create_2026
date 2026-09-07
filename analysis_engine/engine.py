@@ -14,7 +14,7 @@ The project folder must have this structure:
         /backend    ← Python API code
         /frontend   ← React/JS code
 
-Output structure (the API contract for Rohith):
+Output structure (the API contract):
     {
         "status": "ok" | "warning" | "error",
         "summary": {
@@ -35,6 +35,7 @@ Output structure (the API contract for Rohith):
                         "backend_field": {"name": "userId", "file": "backend/api.py", "line": 10},
                         "frontend_field": {"name": "user_id", "file": "frontend/App.jsx", "line": 25},
                         "status": "possible_mismatch",
+                        "confidence": "confirmed",
                         "message": "..."
                     },
                     ...
@@ -48,6 +49,25 @@ import os
 from analysis_engine.backend_parser import parse_backend
 from analysis_engine.frontend_parser import parse_frontend
 from analysis_engine.comparator import compare_fields, summarize
+
+
+def _flatten_frontend_fields(frontend_files):
+    """
+    Convert file-centric frontend records back into a flat list of field dicts
+    for backward compatibility with the frontend_fields key in the API response.
+
+    Each field dict contains: name, file, line.
+    """
+    flat = []
+    for file_record in frontend_files:
+        filepath = file_record["file"]
+        for field in file_record["fields"]:
+            flat.append({
+                "name": field["name"],
+                "file": filepath,
+                "line": field["line"]
+            })
+    return flat
 
 
 def run_analysis(project_path):
@@ -73,27 +93,31 @@ def run_analysis(project_path):
     backend_endpoints = parse_backend(backend_dir)
     print(f"[engine] Found {len(backend_endpoints)} endpoint(s) in backend.")
 
-    # Step 2 — Parse the frontend to find all data fields accessed
+    # Step 2 — Parse the frontend to find all data fields accessed (file-centric)
     print("\n[engine] Step 2: Parsing frontend...")
-    frontend_fields = parse_frontend(frontend_dir)
-    print(f"[engine] Found {len(frontend_fields)} unique field(s) in frontend.")
+    frontend_files = parse_frontend(frontend_dir)
+    total_fields = sum(len(fr["fields"]) for fr in frontend_files)
+    print(f"[engine] Found {len(frontend_files)} frontend file(s) with {total_fields} field usage(s).")
 
-    # Step 3 — Compare each endpoint's fields against the frontend fields
+    # Step 3 — Compare each endpoint's fields against frontend files (endpoint-aware)
     print("\n[engine] Step 3: Comparing backend fields with frontend fields...")
     endpoint_results = []
     all_comparison_results = []
+
+    # Flatten frontend fields once for backward-compatible API response
+    flat_frontend_fields = _flatten_frontend_fields(frontend_files)
 
     for endpoint_info in backend_endpoints:
         endpoint = endpoint_info["endpoint"]
         b_fields = endpoint_info["fields"]
 
-        comparison = compare_fields(b_fields, frontend_fields)
+        comparison = compare_fields(endpoint, b_fields, frontend_files)
         all_comparison_results.extend(comparison)
 
         endpoint_results.append({
             "endpoint": endpoint,
             "backend_fields": b_fields,
-            "frontend_fields": frontend_fields,
+            "frontend_fields": flat_frontend_fields,
             "results": comparison
         })
 
