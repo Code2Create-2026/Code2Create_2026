@@ -1,0 +1,10 @@
+{
+  "description": "Analyze codebases for API field mismatches between Python backends and React frontends, helping developers identify and resolve integration issues efficiently.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
