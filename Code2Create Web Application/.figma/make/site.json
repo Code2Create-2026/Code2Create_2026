@@ -1,0 +1,10 @@
+{
+  "description": "Effortlessly analyze backend and frontend code for API mismatches, ensuring seamless integration and preventing UI breakages for developers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
