@@ -535,7 +535,13 @@ function AnalyzingScreen({
 // -------------------------------------------------------------
 // Phase 5: Change Impact Map Components
 // -------------------------------------------------------------
-function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean }) {
+export interface ImpactEndpointData {
+  endpoint: string;
+  backendFields: { source: FieldSource; frontendUsages: FieldResult[] }[];
+  frontendOnlyFields: FieldResult[];
+}
+
+function ImpactEndpointCard({ data, hasIssues }: { data: ImpactEndpointData; hasIssues: boolean }) {
   const [expanded, setExpanded] = useState(hasIssues);
 
   return (
@@ -554,9 +560,13 @@ function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean
           </span>
         </div>
         <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-muted mr-2">
+            <span>{data.backendFields.length} backend field(s)</span> •
+            <span>{data.backendFields.reduce((acc, bf) => acc + bf.frontendUsages.length, 0) + data.frontendOnlyFields.length} frontend usage(s)</span>
+          </div>
           {hasIssues && (
-             <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20">
-               Has Issues
+             <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded border border-amber-400/20">
+               Issues Found
              </span>
           )}
           <span className="text-muted">
@@ -573,7 +583,7 @@ function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean
           )}
 
           {/* Backend Fields and their Frontend Usages */}
-          {data.backendFields.map((bf: any, i: number) => (
+          {data.backendFields.map((bf, i) => (
             <div key={i} className="border border-card-border rounded-lg bg-background/30 overflow-hidden">
               <div className="p-3 bg-muted-bg/50 border-b border-card-border flex items-start justify-between">
                 <div>
@@ -597,10 +607,11 @@ function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean
                   </div>
                 ) : (
                   <div className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-[1px] before:bg-card-border ml-2">
-                    {bf.frontendUsages.map((usage: any, j: number) => {
+                    {bf.frontendUsages.map((usage, j) => {
                       const ff = usage.frontend_field;
                       const isMatch = usage.status === 'match';
                       const isConfirmed = usage.confidence === 'confirmed';
+                      const isProbable = usage.confidence === 'probable';
                       
                       return (
                         <div key={j} className="relative pl-8">
@@ -610,23 +621,23 @@ function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className={`font-mono font-bold text-sm ${isMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                    {ff.name}
+                                    {ff!.name}
                                   </span>
                                   <span className="text-[10px] text-muted font-mono bg-card border border-card-border px-1.5 py-0.5 rounded">
-                                    {ff.file} : {ff.line}
+                                    {ff!.file} : {ff!.line}
                                   </span>
                                 </div>
                                 <div className="mt-2 flex items-center gap-2">
                                   <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isMatch ? 'bg-emerald-400/10 text-emerald-400' : 'bg-amber-400/10 text-amber-400'}`}>
-                                    {usage.status.replace(/_/g, ' ')}
+                                    {isMatch ? 'MATCH' : 'POSSIBLE MISMATCH'}
                                   </span>
-                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-muted-bg text-muted border border-card-border'}`}>
-                                    {usage.confidence}
+                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30' : isProbable ? 'bg-blue-400/20 text-blue-400 border border-blue-400/30' : 'bg-muted-bg text-muted border border-card-border border-dashed'}`}>
+                                    {isConfirmed ? 'CONFIRMED DEPENDENCY' : isProbable ? 'PROBABLE DEPENDENCY' : 'UNCERTAIN RELATIONSHIP'}
                                   </span>
                                 </div>
-                                {!isConfirmed && (
+                                {!isConfirmed && !isProbable && (
                                   <p className="text-[11px] text-muted mt-2 border-t border-card-border pt-2">
-                                    Potential relationship. Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
+                                    Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
                                   </p>
                                 )}
                               </div>
@@ -653,32 +664,33 @@ function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean
                 </div>
               </div>
               <div className="p-3 space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-[1px] before:bg-card-border ml-2">
-                {data.frontendOnlyFields.map((usage: any, j: number) => {
+                {data.frontendOnlyFields.map((usage, j) => {
                   const ff = usage.frontend_field;
                   const isConfirmed = usage.confidence === 'confirmed';
+                  const isProbable = usage.confidence === 'probable';
                   return (
                     <div key={j} className="relative pl-8">
                       <div className="absolute left-[-11px] top-3 w-6 h-[1px] bg-card-border" />
-                      <div className="p-3 rounded-md border bg-amber-400/5 border-amber-400/20">
+                      <div className="p-3 rounded-md border bg-rose-400/5 border-rose-400/20">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-sm text-amber-400">
-                            {ff.name}
+                          <span className="font-mono font-bold text-sm text-rose-400">
+                            {ff!.name}
                           </span>
                           <span className="text-[10px] text-muted font-mono bg-card border border-card-border px-1.5 py-0.5 rounded">
-                            {ff.file} : {ff.line}
+                            {ff!.file} : {ff!.line}
                           </span>
                         </div>
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400">
-                            {usage.status.replace(/_/g, ' ')}
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-400/10 text-rose-400">
+                            FRONTEND ONLY
                           </span>
-                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-muted-bg text-muted border border-card-border'}`}>
-                            {usage.confidence}
+                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30' : isProbable ? 'bg-blue-400/20 text-blue-400 border border-blue-400/30' : 'bg-muted-bg text-muted border border-card-border border-dashed'}`}>
+                            {isConfirmed ? 'CONFIRMED DEPENDENCY' : isProbable ? 'PROBABLE DEPENDENCY' : 'UNCERTAIN RELATIONSHIP'}
                           </span>
                         </div>
-                        {!isConfirmed && (
+                        {!isConfirmed && !isProbable && (
                           <p className="text-[11px] text-muted mt-2 border-t border-card-border pt-2">
-                            Potential relationship. Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
+                            Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
                           </p>
                         )}
                       </div>
@@ -720,7 +732,7 @@ function ResultsScreen({
 
         // Case 1 & 2: backend_field !== null
         if (r.backend_field) {
-          const key = r.backend_field.name;
+          const key = `${r.backend_field.name}:${r.backend_field.file}:${r.backend_field.line}`;
           if (!backendFieldsMap[key]) {
             backendFieldsMap[key] = {
               source: r.backend_field,
@@ -1057,10 +1069,22 @@ function ResultsScreen({
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="bg-card border border-card-border rounded-xl p-6 mb-6">
             <h3 className="text-xl font-semibold mb-2 text-foreground">Change Impact Map</h3>
-            <p className="text-muted text-sm">
+            <p className="text-muted text-sm mb-4">
               Visualize how backend response fields map to specific frontend usages. 
               Review the confidence levels to understand where the dependency is explicitly proven versus inferred.
             </p>
+            
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 pt-4 border-t border-card-border text-xs font-mono">
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-400"></div> Match</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-400"></div> Possible Mismatch</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-400"></div> Frontend Only</div>
+              <div className="flex items-center gap-3 border-l border-card-border pl-4 ml-2">
+                <span className="font-bold text-emerald-400">CONFIRMED</span>
+                <span className="font-bold text-blue-400">PROBABLE</span>
+                <span className="font-bold text-muted">UNCERTAIN</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
