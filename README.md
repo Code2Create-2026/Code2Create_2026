@@ -2,101 +2,64 @@
 
 A small toolchain and example app that detects and helps prevent frontend/backend contract mismatches (the kind of break that happens when a backend field like `user_id` is renamed to `userId` and the frontend instantly crashes). It provides an analysis engine that parses frontend and backend code, a comparator to identify breaking differences, a web UI for inspection, and a small sample project to exercise the system.
 
-## Stack
-- Language(s): Python (analysis + backend) and TypeScript (React) for the web UI
-- Framework / runtime: Flask-style Python backend (serves API + templates) and Vite + React + TypeScript for the frontend
-- Notable libraries: Flask / Jinja2 (backend templates & routes), Vite + React + TypeScript (frontend), Python stdlib AST/regex utilities used by the analysis engine
+## Project Structure
 
-## How it's organized
-Top-level structure (important entries only):
+This repository is split into two main directories:
 
-```
-.gitignore
-run_integrated.py            # Integration runner / orchestration script
-test_engine.py               # Small test harness for the analysis engine
-analysis_engine/             # Core analysis code: parsers, comparator, orchestrator
-  __init__.py
-  backend_parser.py
-  frontend_parser.py
-  comparator.py
-  engine.py
-backend/                     # Python backend that serves the web UI and API
-  app.py
-  routes.py
-  requirements.txt
-  templates/
-    index.html               # Backend-served template / UI shell
-Code2Create Web Application/ # Frontend app (Vite + React + TypeScript)
-  package.json
-  tsconfig.json
-  vite.config.ts
-  src/
-    App.tsx
-    main.tsx
-sample_project/              # Minimal example frontend + backend to demo analyses
-  backend/
-    api.py
-  frontend/
+- **`backend/`**: The core analysis engine and Python Flask backend. It exposes the API to run the analysis, and orchestrates the parsing of frontend and backend code.
+- **`frontend/`**: The React + Vite frontend application. It provides the web UI to interact with the analysis engine, upload zip files, and visualize the API mismatches.
+
+```text
+Code2Create_2026/
+├── backend/                  # Python backend and Analysis Engine
+│   ├── analysis_engine/      # Core AST parsing and matching logic
+│   ├── backend/              # Flask API routes and app setup
+│   ├── sample_project/       # Demo projects to test the engine
+│   ├── run_integrated.py     # Main script to run the server
+│   └── test_engine.py        # Test harness for the engine
+├── frontend/                 # React + Vite web UI
+│   ├── src/                  # React components and services
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.ts        # Vite configuration
+└── README.md                 # This file
 ```
 
-How it fits together:
-- The analysis_engine contains parsers for frontend and backend code that extract symbols/fields and a comparator that finds mismatches and likely-breaking changes.
-- The backend provides an API and serves the UI (templates/index.html) so you can upload or point to code, run analysis, and view results.
-- The "Code2Create Web Application" directory is the React + Vite frontend used as the interactive UI. The sample_project folder contains a tiny backend and frontend to demonstrate or reproduce contract mismatches.
-- run_integrated.py and test_engine.py are convenience scripts to run an end-to-end analysis or exercise the engine locally.
+## How to Run Locally
 
-## How to run (quickstart)
-Backend (Python)
+You will need two separate terminal windows to run the frontend and backend simultaneously.
+
+### 1. Run the Backend (Python)
+The backend is a Flask server that runs the analysis engine.
+
 ```bash
-# from repository root
-python3 -m venv .venv
-source .venv/bin/activate
+cd backend
+python -m venv .venv
+# Activate the virtual environment:
+# Windows: .venv\Scripts\activate
+# Mac/Linux: source .venv/bin/activate
+
 pip install -r backend/requirements.txt
 
-# option A: run Flask-style (if app.py exposes app)
-export FLASK_APP=backend.app
-export FLASK_ENV=development
-flask run
-
-# option B: run directly if app.py has a main runner
-python backend/app.py
+# Start the backend server on http://localhost:5000
+python run_integrated.py --server
 ```
 
-Frontend (Vite + React)
+### 2. Run the Frontend (Vite + React)
+The frontend is the interactive dashboard used to view the analysis results.
+
 ```bash
-cd "Code2Create Web Application"
-# use npm, yarn, or pnpm depending on your preference
+cd frontend
+# Install dependencies
 npm install
+# Start the development server (usually on http://localhost:5173)
 npm run dev
-# By default Vite serves on http://localhost:5173 (or a different port shown in the terminal)
 ```
 
-Integrated / analysis scripts
-```bash
-# run the integrated orchestration (may call backend analysis functions)
-python run_integrated.py
+## How it works
+- The **`analysis_engine`** (in the backend folder) contains AST parsers for frontend (React/JS/TS) and backend (Python/Java/C++) code.
+- The **comparator** cross-references backend API definitions with frontend fetch/axios calls to find likely-breaking changes (like `userId` vs `user_id`).
+- When a user uploads a project `.zip` file via the web UI, the backend extracts the code, runs the engine over it, and returns the analysis results, highlighting missing or mismatched fields.
 
-# run the test harness for the engine
-python test_engine.py
-```
-
-Notes and configuration
-- The frontend will need the backend API URL to be configured (commonly via an environment variable or a file the frontend reads at build/runtime). Check App.tsx and any environment usage in `Code2Create Web Application` for the expected variable (e.g., REACT_APP_API_URL or VITE_API_URL).
-- If the backend serves the frontend (templates/index.html), ensure the backend is running before opening the served URL.
-- If you run into missing dependencies, open `backend/requirements.txt` and `Code2Create Web Application/package.json` for exact packages.
-
-## Files to inspect first
-- analysis_engine/engine.py — main orchestrator for parsing + comparing
-- analysis_engine/comparator.py — heuristics and matching rules used to detect breaking changes
-- backend/routes.py and backend/app.py — API endpoints and how uploads/analyses are triggered
-- Code2Create Web Application/src/App.tsx — frontend integration and API calls
-- run_integrated.py — example of running an end-to-end analysis
-
-## Contributing
-- Add tests for new comparator heuristics under additions to `test_engine.py`.
-- If you change the frontend contract, add or update a sample in `sample_project/` to exercise the new case.
-
-## Try asking
-- How does the comparator decide when a field rename (e.g., `user_id` -> `userId`) is a breaking change? (see analysis_engine/comparator.py)
-- What API endpoints does the frontend call in `Code2Create Web Application/src/App.tsx` and what request payloads do they expect? (see backend/routes.py and App.tsx)
-- Does run_integrated.py require external services or credentials, or can it run entirely locally with the sample_project?
+## Recent Fixes
+- **Duplicate Mismatch Fix**: The comparator now properly deduplicates frontend fields by their `(name, file)` mapping. A field appearing multiple times in the same file no longer generates duplicate mismatch cards in the UI.
+- **Test Directory Isolation**: The backend parser correctly ignores nested test/sample directories when scanning uploaded zips, preventing false positives and inflated issue counts.
