@@ -1,0 +1,28 @@
+"""
+app.py — Flask application entry point for Code2Create 2026 backend.
+
+Starts the server and registers all API routes.
+"""
+
+import os
+import sys
+
+# Ensure backend directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from flask import Flask
+from flask_cors import CORS
+from routes import register_routes
+
+app = Flask(__name__)
+
+# Allow Rohith's frontend (running on a different port) to call this API
+CORS(app)
+
+# Register all routes defined in routes.py
+register_routes(app)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Code2Create 2026 — Analysis Engine API running on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=os.environ.get("FLASK_DEBUG", "0") == "1")
