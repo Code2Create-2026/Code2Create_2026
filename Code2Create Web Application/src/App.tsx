@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 // Icons
 const Upload = ({ className }: { className?: string }) => (
@@ -537,7 +537,45 @@ function ResultsScreen({
   onReset: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'issues' | 'impact_map'>('issues');
   const { summary, endpoints } = result;
+
+  // Grouped Impact Map Data for Phase 5
+  const impactMapData = useMemo(() => {
+    return endpoints.map((ep) => {
+      const backendFieldsMap: Record<string, { source: FieldSource; frontendUsages: FieldResult[] }> = {};
+      const frontendOnlyFields: FieldResult[] = [];
+
+      ep.results.forEach((r) => {
+        // Case 4: both null
+        if (!r.backend_field && !r.frontend_field) return;
+
+        // Case 1 & 2: backend_field !== null
+        if (r.backend_field) {
+          const key = r.backend_field.name;
+          if (!backendFieldsMap[key]) {
+            backendFieldsMap[key] = {
+              source: r.backend_field,
+              frontendUsages: [],
+            };
+          }
+          if (r.frontend_field) {
+            backendFieldsMap[key].frontendUsages.push(r);
+          }
+        } 
+        // Case 3: backend_field === null && frontend_field !== null
+        else if (r.frontend_field) {
+          frontendOnlyFields.push(r);
+        }
+      });
+
+      return {
+        endpoint: ep.endpoint,
+        backendFields: Object.values(backendFieldsMap),
+        frontendOnlyFields,
+      };
+    });
+  }, [endpoints]);
 
   const copyJson = () => {
     navigator.clipboard.writeText(JSON.stringify(result, null, 2));
@@ -600,7 +638,29 @@ function ResultsScreen({
         </div>
       </div>
 
-      {/* Summary Stat Grid */}
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-card-border pb-2">
+        <button
+          onClick={() => setActiveTab('issues')}
+          className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+            activeTab === 'issues' ? 'bg-card border border-card-border text-foreground' : 'text-muted hover:text-foreground'
+          }`}
+        >
+          Issues Dashboard
+        </button>
+        <button
+          onClick={() => setActiveTab('impact_map')}
+          className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+            activeTab === 'impact_map' ? 'bg-card border border-card-border text-foreground' : 'text-muted hover:text-foreground'
+          }`}
+        >
+          Change Impact Map
+        </button>
+      </div>
+
+      {activeTab === 'issues' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Summary Stat Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-card border border-card-border rounded-xl p-4">
           <p className="text-xs font-mono text-muted uppercase">Total Evaluated</p>
@@ -822,6 +882,22 @@ function ResultsScreen({
           );
         })}
       </div>
+        </div>
+      )}
+
+      {activeTab === 'impact_map' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="bg-card border border-card-border rounded-xl p-6">
+            <h3 className="text-xl font-semibold mb-4 text-foreground">Change Impact Map (Placeholder)</h3>
+            <p className="text-muted text-sm mb-4">
+              Grouped data structure generated via useMemo. UI to be implemented in the next checkpoint.
+            </p>
+            <pre className="bg-muted-bg border border-card-border p-4 rounded-lg text-xs font-mono overflow-auto max-h-[500px] text-foreground/80">
+              {JSON.stringify(impactMapData, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
