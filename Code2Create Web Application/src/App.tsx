@@ -34,6 +34,12 @@ const RefreshCw = ({ className }: { className?: string }) => (
 const Copy = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 );
+const ChevronDown = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 9 6 6 6-6"/></svg>
+);
+const ChevronRight = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
+);
 
 // Types matching Python Analysis Engine API Contract (Phase 4)
 export interface Summary {
@@ -527,6 +533,168 @@ function AnalyzingScreen({
 }
 
 // -------------------------------------------------------------
+// Phase 5: Change Impact Map Components
+// -------------------------------------------------------------
+function ImpactEndpointCard({ data, hasIssues }: { data: any; hasIssues: boolean }) {
+  const [expanded, setExpanded] = useState(hasIssues);
+
+  return (
+    <div className="bg-card border border-card-border rounded-xl overflow-hidden transition-all duration-200">
+      {/* Header */}
+      <button 
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 bg-background/50 hover:bg-card-hover transition-colors border-b border-card-border"
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-muted-bg text-primary border border-card-border">
+            ROUTE
+          </span>
+          <span className="font-mono text-base font-semibold text-foreground">
+            {data.endpoint}
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          {hasIssues && (
+             <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md border border-amber-400/20">
+               Has Issues
+             </span>
+          )}
+          <span className="text-muted">
+            {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          </span>
+        </div>
+      </button>
+
+      {/* Body */}
+      {expanded && (
+        <div className="p-4 space-y-6 bg-card">
+          {data.backendFields.length === 0 && data.frontendOnlyFields.length === 0 && (
+            <p className="text-sm text-muted">No fields detected for this endpoint.</p>
+          )}
+
+          {/* Backend Fields and their Frontend Usages */}
+          {data.backendFields.map((bf: any, i: number) => (
+            <div key={i} className="border border-card-border rounded-lg bg-background/30 overflow-hidden">
+              <div className="p-3 bg-muted-bg/50 border-b border-card-border flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-primary font-mono font-bold text-sm">{bf.source.name}</span>
+                    <span className="text-[10px] text-muted font-mono bg-card border border-card-border px-1.5 py-0.5 rounded">
+                      {bf.source.file} : {bf.source.line}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted mt-1">
+                    {bf.frontendUsages.length} frontend usage(s)
+                  </p>
+                </div>
+              </div>
+              
+              <div className="p-3">
+                {bf.frontendUsages.length === 0 ? (
+                  <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-400/10 px-3 py-2 rounded-md border border-amber-400/20">
+                    <AlertTriangle className="w-4 h-4" />
+                    No frontend usage detected
+                  </div>
+                ) : (
+                  <div className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-[1px] before:bg-card-border ml-2">
+                    {bf.frontendUsages.map((usage: any, j: number) => {
+                      const ff = usage.frontend_field;
+                      const isMatch = usage.status === 'match';
+                      const isConfirmed = usage.confidence === 'confirmed';
+                      
+                      return (
+                        <div key={j} className="relative pl-8">
+                          <div className="absolute left-[-11px] top-3 w-6 h-[1px] bg-card-border" />
+                          <div className={`p-3 rounded-md border ${isMatch ? 'bg-emerald-400/5 border-emerald-400/20' : 'bg-amber-400/5 border-amber-400/20'}`}>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-mono font-bold text-sm ${isMatch ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {ff.name}
+                                  </span>
+                                  <span className="text-[10px] text-muted font-mono bg-card border border-card-border px-1.5 py-0.5 rounded">
+                                    {ff.file} : {ff.line}
+                                  </span>
+                                </div>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isMatch ? 'bg-emerald-400/10 text-emerald-400' : 'bg-amber-400/10 text-amber-400'}`}>
+                                    {usage.status.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-muted-bg text-muted border border-card-border'}`}>
+                                    {usage.confidence}
+                                  </span>
+                                </div>
+                                {!isConfirmed && (
+                                  <p className="text-[11px] text-muted mt-2 border-t border-card-border pt-2">
+                                    Potential relationship. Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Frontend Only Fields */}
+          {data.frontendOnlyFields.length > 0 && (
+            <div className="border border-card-border rounded-lg bg-background/30 overflow-hidden mt-6">
+               <div className="p-3 bg-muted-bg/50 border-b border-card-border flex items-start justify-between">
+                <div>
+                  <h4 className="text-amber-400 font-semibold text-sm">Frontend-only fields</h4>
+                  <p className="text-xs text-muted mt-1">
+                    No matching backend field detected for these usages
+                  </p>
+                </div>
+              </div>
+              <div className="p-3 space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-[1px] before:bg-card-border ml-2">
+                {data.frontendOnlyFields.map((usage: any, j: number) => {
+                  const ff = usage.frontend_field;
+                  const isConfirmed = usage.confidence === 'confirmed';
+                  return (
+                    <div key={j} className="relative pl-8">
+                      <div className="absolute left-[-11px] top-3 w-6 h-[1px] bg-card-border" />
+                      <div className="p-3 rounded-md border bg-amber-400/5 border-amber-400/20">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-sm text-amber-400">
+                            {ff.name}
+                          </span>
+                          <span className="text-[10px] text-muted font-mono bg-card border border-card-border px-1.5 py-0.5 rounded">
+                            {ff.file} : {ff.line}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400">
+                            {usage.status.replace(/_/g, ' ')}
+                          </span>
+                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${isConfirmed ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-muted-bg text-muted border border-card-border'}`}>
+                            {usage.confidence}
+                          </span>
+                        </div>
+                        {!isConfirmed && (
+                          <p className="text-[11px] text-muted mt-2 border-t border-card-border pt-2">
+                            Potential relationship. Field usage detected, but no explicit request to this endpoint was found in the same frontend file.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
 // Screen 3: Results Screen
 // -------------------------------------------------------------
 function ResultsScreen({
@@ -886,15 +1054,25 @@ function ResultsScreen({
       )}
 
       {activeTab === 'impact_map' && (
-        <div className="space-y-8 animate-in fade-in duration-300">
-          <div className="bg-card border border-card-border rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-4 text-foreground">Change Impact Map (Placeholder)</h3>
-            <p className="text-muted text-sm mb-4">
-              Grouped data structure generated via useMemo. UI to be implemented in the next checkpoint.
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-card border border-card-border rounded-xl p-6 mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-foreground">Change Impact Map</h3>
+            <p className="text-muted text-sm">
+              Visualize how backend response fields map to specific frontend usages. 
+              Review the confidence levels to understand where the dependency is explicitly proven versus inferred.
             </p>
-            <pre className="bg-muted-bg border border-card-border p-4 rounded-lg text-xs font-mono overflow-auto max-h-[500px] text-foreground/80">
-              {JSON.stringify(impactMapData, null, 2)}
-            </pre>
+          </div>
+
+          <div className="space-y-4">
+            {impactMapData.map((data, idx) => {
+              // Determine if this endpoint has any mismatches or missing fields
+              const ep = endpoints.find(e => e.endpoint === data.endpoint);
+              const hasIssues = ep ? ep.results.some(r => r.status !== 'match') : false;
+              
+              return (
+                <ImpactEndpointCard key={idx} data={data} hasIssues={hasIssues} />
+              );
+            })}
           </div>
         </div>
       )}
