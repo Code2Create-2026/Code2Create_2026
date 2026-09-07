@@ -57,44 +57,46 @@ _JS_BUILTINS = {
 
 def parse_frontend_file(filepath):
     """
-    Parse a single JS/JSX file and return a list of field names accessed
-    from known API response variable names.
-
-    Example file content:
-        const name = data.user_id;
-        const email = data.name;
+    Parse a single JS/JSX file and return a list of field access objects.
 
     Returns:
-        ["user_id", "name"]
+        [
+            {"name": "user_id", "file": "frontend/App.jsx", "line": 25},
+            {"name": "name", "file": "frontend/App.jsx", "line": 26}
+        ]
     """
     with open(filepath, "r", encoding="utf-8") as f:
         source = f.read()
 
-    matches = _FIELD_ACCESS_PATTERN.findall(source)
+    matches = _FIELD_ACCESS_PATTERN.finditer(source)
 
-    # Return unique field names, preserving order of first occurrence.
-    # Skip known JavaScript built-in method names (e.g. res.json, promise.then).
-    seen = set()
-    unique_fields = []
-    for field in matches:
-        if field not in seen and field not in _JS_BUILTINS:
-            seen.add(field)
-            unique_fields.append(field)
+    fields = []
+    for match in matches:
+        field = match.group(1)
+        if field not in _JS_BUILTINS:
+            line_num = source[:match.start()].count("\n") + 1
+            fields.append({
+                "name": field,
+                "file": filepath,
+                "line": line_num
+            })
 
-    return unique_fields
+    return fields
 
 
 def parse_frontend(frontend_dir):
     """
     Walk the entire frontend directory, parse all JS/JSX/TS/TSX files,
-    and collect all unique field names accessed from API response variables.
+    and collect all field names accessed from API response variables.
 
     Returns:
-        List of unique field name strings:
-        ["user_id", "name", "email"]
+        List of field dicts:
+        [
+            {"name": "user_id", "file": "...", "line": 10},
+            ...
+        ]
     """
     all_fields = []
-    seen = set()
 
     if not os.path.isdir(frontend_dir):
         print(f"  [frontend_parser] Directory not found: {frontend_dir}")
@@ -106,9 +108,6 @@ def parse_frontend(frontend_dir):
                 filepath = os.path.join(root, filename)
                 print(f"  [frontend_parser] Parsing: {filepath}")
                 fields = parse_frontend_file(filepath)
-                for field in fields:
-                    if field not in seen:
-                        seen.add(field)
-                        all_fields.append(field)
+                all_fields.extend(fields)
 
     return all_fields

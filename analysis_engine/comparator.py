@@ -43,79 +43,89 @@ def compare_fields(backend_fields, frontend_fields):
     Compare backend and frontend field lists and produce a structured result.
 
     Parameters:
-        backend_fields  (list of str): Fields provided by the backend
-        frontend_fields (list of str): Fields accessed by the frontend
+        backend_fields  (list of dict): Fields provided by the backend, with name/file/line
+        frontend_fields (list of dict): Fields accessed by the frontend, with name/file/line
 
     Returns:
-        List of comparison result dicts, each with:
-        {
-            "backend_field": str or None,
-            "frontend_field": str or None,
-            "status": "match" | "missing_in_backend" | "missing_in_frontend" | "possible_mismatch",
-            "message": str
-        }
+        List of comparison result dicts.
     """
     results = []
 
-    backend_set = set(backend_fields)
-    frontend_set = set(frontend_fields)
-
-    # Build normalization maps: normalized_name → original_name
-    backend_norm = {_normalize(f): f for f in backend_fields}
-    frontend_norm = {_normalize(f): f for f in frontend_fields}
+    # Map normalized names to a list of frontend field objects
+    frontend_map = {}
+    frontend_norm = {}
+    
+    for f in frontend_fields:
+        name = f["name"]
+        norm = _normalize(name)
+        
+        if name not in frontend_map:
+            frontend_map[name] = []
+        frontend_map[name].append(f)
+        
+        if norm not in frontend_norm:
+            frontend_norm[norm] = []
+        frontend_norm[norm].append(f)
 
     processed_backend = set()
     processed_frontend = set()
+    
+    def get_f_key(f):
+        return (f["name"], f.get("file", ""), f.get("line", 0))
 
-    # Check every backend field against every frontend field
+    # Check every backend field against frontend fields
     for b_field in backend_fields:
-        if b_field in frontend_set:
-            # Exact match
-            results.append({
-                "backend_field": b_field,
-                "frontend_field": b_field,
-                "status": "match",
-                "message": f"Fields match: '{b_field}'"
-            })
-            processed_backend.add(b_field)
-            processed_frontend.add(b_field)
-
-        else:
-            # Check for possible mismatch (same normalized form)
-            b_norm = _normalize(b_field)
-            if b_norm in frontend_norm:
-                f_field = frontend_norm[b_norm]
+        b_name = b_field["name"]
+        
+        if b_name in frontend_map:
+            # Exact match - could be multiple frontend locations
+            for f_field in frontend_map[b_name]:
                 results.append({
                     "backend_field": b_field,
                     "frontend_field": f_field,
-                    "status": "possible_mismatch",
-                    "message": (
-                        f"Possible naming mismatch: "
-                        f"backend uses '{b_field}', frontend uses '{f_field}'"
-                    )
+                    "status": "match",
+                    "message": f"Fields match: '{b_name}'"
                 })
-                processed_backend.add(b_field)
-                processed_frontend.add(f_field)
+                processed_frontend.add(get_f_key(f_field))
+            processed_backend.add(b_name)
+            
+        else:
+            # Check for possible mismatch (same normalized form)
+            b_norm = _normalize(b_name)
+            if b_norm in frontend_norm:
+                for f_field in frontend_norm[b_norm]:
+                    results.append({
+                        "backend_field": b_field,
+                        "frontend_field": f_field,
+                        "status": "possible_mismatch",
+                        "message": (
+                            f"Possible naming mismatch: "
+                            f"backend uses '{b_name}', frontend uses '{f_field['name']}'"
+                        )
+                    })
+                    processed_frontend.add(get_f_key(f_field))
+                processed_backend.add(b_name)
 
     # Backend fields with no frontend match at all
     for b_field in backend_fields:
-        if b_field not in processed_backend:
+        b_name = b_field["name"]
+        if b_name not in processed_backend:
             results.append({
                 "backend_field": b_field,
                 "frontend_field": None,
                 "status": "missing_in_frontend",
-                "message": f"Backend provides '{b_field}' but frontend never uses it"
+                "message": f"Backend provides '{b_name}' but frontend never uses it"
             })
-            processed_backend.add(b_field)
+            processed_backend.add(b_name)
 
     # Frontend fields with no backend match at all
     for f_field in frontend_fields:
-        if f_field not in processed_frontend:
+        if get_f_key(f_field) not in processed_frontend:
             results.append({
                 "backend_field": None,
                 "frontend_field": f_field,
                 "status": "missing_in_backend",
-                "message": f"Frontend uses '{f_field}' but backend never provides it"
+                "message": f"Frontend uses '{f_field['name']}' but backend never provides it"
             })
 
     return results

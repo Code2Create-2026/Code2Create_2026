@@ -51,7 +51,7 @@ def extract_route_decorator(decorator):
     return None
 
 
-def extract_return_dict_keys(func_node):
+def extract_return_dict_keys(func_node, filepath):
     """
     Given a function AST node, find the first return statement that returns
     a dictionary literal and extract its string keys.
@@ -59,7 +59,10 @@ def extract_return_dict_keys(func_node):
     Example:
         return {"userId": 101, "name": "Mithul"}
     Returns:
-        ["userId", "name"]
+        [
+            {"name": "userId", "file": "backend/api.py", "line": 10},
+            {"name": "name", "file": "backend/api.py", "line": 10}
+        ]
     """
     keys = []
 
@@ -71,7 +74,11 @@ def extract_return_dict_keys(func_node):
             if isinstance(returned, ast.Dict):
                 for key in returned.keys:
                     if isinstance(key, ast.Constant) and isinstance(key.value, str):
-                        keys.append(key.value)
+                        keys.append({
+                            "name": key.value,
+                            "file": filepath,
+                            "line": key.lineno
+                        })
                 # Stop after the first return dict we find
                 break
 
@@ -107,7 +114,7 @@ def parse_backend_file(filepath):
         for decorator in node.decorator_list:
             route_path = extract_route_decorator(decorator)
             if route_path is not None:
-                fields = extract_return_dict_keys(node)
+                fields = extract_return_dict_keys(node, filepath)
                 endpoints.append({
                     "endpoint": route_path,
                     "fields": fields

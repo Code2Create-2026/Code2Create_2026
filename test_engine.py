@@ -60,28 +60,29 @@ def test_analysis_engine():
     print("✓ Found /api/user endpoint in results")
 
     # 4. Backend should have found the correct fields
-    assert "userId" in user_endpoint["backend_fields"], (
-        f"Expected 'userId' in backend_fields, got: {user_endpoint['backend_fields']}"
-    )
-    assert "name" in user_endpoint["backend_fields"], (
-        f"Expected 'name' in backend_fields, got: {user_endpoint['backend_fields']}"
-    )
-    assert "email" in user_endpoint["backend_fields"], (
-        f"Expected 'email' in backend_fields, got: {user_endpoint['backend_fields']}"
-    )
-    print(f"✓ Backend fields correctly identified: {user_endpoint['backend_fields']}")
+    b_names = [f["name"] for f in user_endpoint["backend_fields"]]
+    assert "userId" in b_names, f"Expected 'userId' in backend_fields, got: {b_names}"
+    assert "name" in b_names, f"Expected 'name' in backend_fields, got: {b_names}"
+    assert "email" in b_names, f"Expected 'email' in backend_fields, got: {b_names}"
+    print(f"✓ Backend fields correctly identified: {b_names}")
+
+    # Add tests for source locations
+    b_field_obj = next(f for f in user_endpoint["backend_fields"] if f["name"] == "userId")
+    assert "file" in b_field_obj and b_field_obj["file"], "Backend field missing file info"
+    assert "line" in b_field_obj and b_field_obj["line"] > 0, "Backend field missing line info"
+    print(f"✓ Backend field source info preserved: {b_field_obj['file']}:{b_field_obj['line']}")
 
     # 5. Frontend should have found the correct fields
-    assert "user_id" in user_endpoint["frontend_fields"], (
-        f"Expected 'user_id' in frontend_fields, got: {user_endpoint['frontend_fields']}"
-    )
-    assert "name" in user_endpoint["frontend_fields"], (
-        f"Expected 'name' in frontend_fields, got: {user_endpoint['frontend_fields']}"
-    )
-    assert "email" in user_endpoint["frontend_fields"], (
-        f"Expected 'email' in frontend_fields, got: {user_endpoint['frontend_fields']}"
-    )
-    print(f"✓ Frontend fields correctly identified: {user_endpoint['frontend_fields']}")
+    f_names = [f["name"] for f in user_endpoint["frontend_fields"]]
+    assert "user_id" in f_names, f"Expected 'user_id' in frontend_fields, got: {f_names}"
+    assert "name" in f_names, f"Expected 'name' in frontend_fields, got: {f_names}"
+    assert "email" in f_names, f"Expected 'email' in frontend_fields, got: {f_names}"
+    print(f"✓ Frontend fields correctly identified: {f_names}")
+
+    f_field_obj = next(f for f in user_endpoint["frontend_fields"] if f["name"] == "user_id")
+    assert "file" in f_field_obj and f_field_obj["file"], "Frontend field missing file info"
+    assert "line" in f_field_obj and f_field_obj["line"] > 0, "Frontend field missing line info"
+    print(f"✓ Frontend field source info preserved: {f_field_obj['file']}:{f_field_obj['line']}")
 
     # 6. Should detect userId vs user_id as a possible_mismatch
     mismatch_results = [
@@ -92,20 +93,22 @@ def test_analysis_engine():
         f"Expected at least one possible_mismatch, got: {user_endpoint['results']}"
     )
     mismatch = mismatch_results[0]
-    assert mismatch["backend_field"] == "userId", (
+    assert mismatch["backend_field"]["name"] == "userId", (
         f"Expected backend_field='userId', got '{mismatch['backend_field']}'"
     )
-    assert mismatch["frontend_field"] == "user_id", (
+    assert mismatch["frontend_field"]["name"] == "user_id", (
         f"Expected frontend_field='user_id', got '{mismatch['frontend_field']}'"
     )
-    print(f"✓ Detected possible_mismatch: 'userId' (backend) vs 'user_id' (frontend)")
+    assert "file" in mismatch["backend_field"]
+    assert "file" in mismatch["frontend_field"]
+    print(f"✓ Detected possible_mismatch preserving BOTH source locations")
 
     # 7. name and email should be matches
     match_results = [
         r for r in user_endpoint["results"]
         if r["status"] == "match"
     ]
-    match_fields = [r["backend_field"] for r in match_results]
+    match_fields = [r["backend_field"]["name"] for r in match_results]
     assert "name" in match_fields, f"Expected 'name' to be a match, got: {match_results}"
     assert "email" in match_fields, f"Expected 'email' to be a match, got: {match_results}"
     print(f"✓ 'name' and 'email' correctly identified as matches")

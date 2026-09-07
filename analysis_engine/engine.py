@@ -28,12 +28,12 @@ Output structure (the API contract for Rohith):
         "endpoints": [
             {
                 "endpoint": "/api/user",
-                "backend_fields": ["userId", "name"],
-                "frontend_fields": ["user_id", "name"],
+                "backend_fields": [{"name": "userId", "file": "backend/api.py", "line": 10}],
+                "frontend_fields": [{"name": "user_id", "file": "frontend/App.jsx", "line": 25}],
                 "results": [
                     {
-                        "backend_field": "userId",
-                        "frontend_field": "user_id",
+                        "backend_field": {"name": "userId", "file": "backend/api.py", "line": 10},
+                        "frontend_field": {"name": "user_id", "file": "frontend/App.jsx", "line": 25},
                         "status": "possible_mismatch",
                         "message": "..."
                     },
